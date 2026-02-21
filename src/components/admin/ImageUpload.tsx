@@ -73,7 +73,7 @@ export default function ImageUpload({ value, onChange }: ImageUploadProps) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="https://example.com/image.jpg"
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red transition-all"
+          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-brand-red/30 focus:border-brand-red transition-all"
           dir="ltr"
         />
       </div>
