@@ -13,9 +13,9 @@ export default function ImageUpload({ value, onChange }: ImageUploadProps) {
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-  const hasCloudinary = cloudName && uploadPreset && cloudName !== "your-cloud-name";
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "dvgjjnbyb";
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "b99-menu";
+  const hasCloudinary = true;
 
   const toBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
