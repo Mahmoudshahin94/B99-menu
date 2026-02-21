@@ -164,7 +164,7 @@ export async function seedItemPhotos(): Promise<{ updated: number; skipped: numb
   const items = result.data?.items ?? [];
 
   let updated = 0;
-  let skipped = 0;
+  const skipped = 0;
 
   // Build transactions in batches of 20
   const allTx = items.map((item: { id: string; name_en: string; image?: string }) => {

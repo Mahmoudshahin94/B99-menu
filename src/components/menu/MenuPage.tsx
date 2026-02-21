@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { db } from "@/lib/db";
 import { useLanguage } from "@/context/LanguageContext";

@@ -87,7 +87,7 @@ function resolvePhoto(cat: Category): string | null {
 const ALL_PHOTO = "https://images.unsplash.com/photo-1447933601403-0c6688de566e?w=300&q=80";
 
 export default function CategoryTabs({ categories, activeId, onSelect }: CategoryTabsProps) {
-  const { t, lang } = useLanguage();
+  const { lang } = useLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
 
