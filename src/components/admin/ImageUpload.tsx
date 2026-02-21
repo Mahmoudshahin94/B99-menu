@@ -17,37 +17,73 @@ export default function ImageUpload({ value, onChange }: ImageUploadProps) {
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
   const hasCloudinary = cloudName && uploadPreset && cloudName !== "your-cloud-name";
 
+  const toBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const compressImage = (file: File, maxWidth = 800, quality = 0.8): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const img = new window.Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas not supported"));
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!hasCloudinary) {
-      setError("Cloudinary is not configured. Please enter an image URL manually.");
-      return;
-    }
-
     setUploading(true);
     setError("");
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", uploadPreset!);
-
     try {
-      const res = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-        { method: "POST", body: formData }
-      );
-      const data = await res.json();
-      if (data.secure_url) {
-        onChange(data.secure_url);
+      if (hasCloudinary) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("upload_preset", uploadPreset!);
+        const res = await fetch(
+          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+          { method: "POST", body: formData }
+        );
+        const data = await res.json();
+        if (data.secure_url) {
+          onChange(data.secure_url);
+        } else {
+          setError("Upload failed. Please try again.");
+        }
       } else {
-        setError("Upload failed. Please try again.");
+        const base64 = await compressImage(file);
+        onChange(base64);
       }
     } catch {
-      setError("Upload failed. Please check your Cloudinary settings.");
+      try {
+        const base64 = await toBase64(file);
+        onChange(base64);
+      } catch {
+        setError("Upload failed. Please try again.");
+      }
     } finally {
       setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -61,6 +97,7 @@ export default function ImageUpload({ value, onChange }: ImageUploadProps) {
             alt="Preview"
             fill
             className="object-cover"
+            unoptimized={value.startsWith("data:")}
             onError={() => {}}
           />
           <button
@@ -121,11 +158,6 @@ export default function ImageUpload({ value, onChange }: ImageUploadProps) {
           onChange={handleFileChange}
           className="hidden"
         />
-        {!hasCloudinary && (
-          <span className="text-xs text-amber-600">
-            Configure Cloudinary in .env.local to enable uploads
-          </span>
-        )}
       </div>
 
       {error && <p className="text-red-500 text-xs">{error}</p>}

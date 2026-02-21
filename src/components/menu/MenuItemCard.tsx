@@ -63,6 +63,7 @@ export default function MenuItemCard({ item, index, category }: MenuItemCardProp
               fill
               sizes="(max-width: 640px) 50vw, 33vw"
               className="object-cover"
+              unoptimized={item.image!.startsWith("data:")}
               onError={() => setImgError(true)}
               loading="lazy"
             />
