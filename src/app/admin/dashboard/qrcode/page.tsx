@@ -116,16 +116,6 @@ export default function QRCodePage() {
             Download QR Code (PNG)
           </button>
 
-          {/* Instructions */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-            <p className="text-sm font-semibold text-amber-800 mb-2">📌 How to use</p>
-            <ol className="text-xs text-amber-700 space-y-1 list-decimal list-inside">
-              <li>Download the QR code image above</li>
-              <li>Print it and place it on your tables or counter</li>
-              <li>Update <code className="bg-amber-100 px-1 rounded">NEXT_PUBLIC_SITE_URL</code> in .env.local with your live domain before deployment</li>
-              <li>Customers scan with their phone camera — no app needed</li>
-            </ol>
-          </div>
         </div>
       </div>
     </AdminLayout>

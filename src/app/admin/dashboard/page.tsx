@@ -5,7 +5,6 @@ import Link from "next/link";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
 import SeedButton from "@/components/admin/SeedButton";
-import PhotoSeedButton from "@/components/admin/PhotoSeedButton";
 
 interface StatCard {
   label: string;
@@ -177,25 +176,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Add photos to items */}
-        {stats && stats.totalItems > 0 && (
-          <div className="bg-violet-50 border border-violet-200 rounded-2xl p-5">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-violet-800 mb-1">Add Photos to Menu Items</h3>
-                <p className="text-violet-700 text-sm mb-4">
-                  Instantly add beautiful, curated photos to all {stats.totalItems} menu items — espresso, orange juice, milkshakes, crepes, and more.
-                </p>
-                <PhotoSeedButton />
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
     </AdminLayout>
