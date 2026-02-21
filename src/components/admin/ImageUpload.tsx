@@ -13,41 +13,6 @@ export default function ImageUpload({ value, onChange }: ImageUploadProps) {
   const [error, setError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "dvgjjnbyb";
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "b99-menu";
-  const hasCloudinary = true;
-
-  const toBase64 = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
-  const compressImage = (file: File, maxWidth = 800, quality = 0.8): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const img = new window.Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        const canvas = document.createElement("canvas");
-        let { width, height } = img;
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("Canvas not supported"));
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", quality));
-      };
-      img.onerror = reject;
-      img.src = url;
-    });
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -56,31 +21,19 @@ export default function ImageUpload({ value, onChange }: ImageUploadProps) {
     setError("");
 
     try {
-      if (hasCloudinary) {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("upload_preset", uploadPreset!);
-        const res = await fetch(
-          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-          { method: "POST", body: formData }
-        );
-        const data = await res.json();
-        if (data.secure_url) {
-          onChange(data.secure_url);
-        } else {
-          setError("Upload failed. Please try again.");
-        }
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+
+      if (data.url) {
+        onChange(data.url);
       } else {
-        const base64 = await compressImage(file);
-        onChange(base64);
+        setError(data.error ?? "Upload failed. Please try again.");
       }
     } catch {
-      try {
-        const base64 = await toBase64(file);
-        onChange(base64);
-      } catch {
-        setError("Upload failed. Please try again.");
-      }
+      setError("Upload failed. Please try again.");
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
