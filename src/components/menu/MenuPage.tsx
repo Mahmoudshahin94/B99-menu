@@ -1,0 +1,520 @@
+"use client";
+
+import { useState, useMemo, useRef, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { db } from "@/lib/db";
+import { useLanguage } from "@/context/LanguageContext";
+import { useTheme } from "@/context/ThemeContext";
+import CategoryTabs from "./CategoryTabs";
+import SearchBar from "./SearchBar";
+import MenuItemCard from "./MenuItemCard";
+import LanguageToggle from "./LanguageToggle";
+import type { Category, MenuItem } from "@/types";
+
+/* ── Skeleton card ───────────────────────────────────── */
+function SkeletonCard() {
+  return (
+    <div className="bg-surface rounded-3xl overflow-hidden border border-border shadow-card">
+      <div className="skeleton h-44 w-full" />
+      <div className="p-4 space-y-2.5">
+        <div className="skeleton h-4 w-3/4 rounded-lg" />
+        <div className="skeleton h-3 w-1/2 rounded-lg" />
+        <div className="skeleton h-7 w-2/5 rounded-xl mt-3" />
+      </div>
+    </div>
+  );
+}
+
+function SkeletonCategoryCard() {
+  return <div className="skeleton flex-shrink-0 w-[88px] h-[110px] rounded-[20px]" />;
+}
+
+/* ── Icons ───────────────────────────────────────────── */
+function MoonIcon() {
+  return (
+    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+    </svg>
+  );
+}
+function SunIcon() {
+  return (
+    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+      <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.36-6.36-.71.71M6.34 17.66l-.71.71M17.66 17.66l-.71-.71M6.34 6.34l-.71-.71M12 5a7 7 0 100 14A7 7 0 0012 5z"
+        strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+function SearchIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+  );
+}
+
+export default function MenuPage() {
+  const { t, lang, isRTL } = useLanguage();
+  const { theme, toggleTheme } = useTheme();
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
+
+  const { data, isLoading, error } = db.useQuery({
+    categories: {},
+    items: {},
+    settings: {},
+  });
+
+  /* Scroll listener – shrink header */
+  useEffect(() => {
+    const handler = () => setIsScrolled(window.scrollY > 80);
+    window.addEventListener("scroll", handler, { passive: true });
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  const logoUrl = useMemo(() => {
+    if (!data?.settings) return null;
+    const s = data.settings.find((s: { key: string; value: string }) => s.key === "logo");
+    return s?.value || null;
+  }, [data?.settings]);
+
+  const shopName = useMemo(() => {
+    if (!data?.settings) return null;
+    const s = data.settings.find((s: { key: string; value: string }) => s.key === "shop_name");
+    return s?.value || null;
+  }, [data?.settings]);
+
+  const categories: Category[] = useMemo(() => {
+    if (!data?.categories) return [];
+    return (data.categories as Category[]).filter((c) => c.active).sort((a, b) => a.order - b.order);
+  }, [data?.categories]);
+
+  const allItems: MenuItem[] = useMemo(() => {
+    if (!data?.items) return [];
+    return data.items as MenuItem[];
+  }, [data?.items]);
+
+  const filteredItems = useMemo(() => {
+    let items = allItems;
+    if (activeCategory) {
+      items = items.filter((item) => item.category_id === activeCategory);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      items = items.filter(
+        (item) =>
+          item.name_en?.toLowerCase().includes(q) ||
+          item.name_ar?.toLowerCase().includes(q) ||
+          item.description_en?.toLowerCase().includes(q) ||
+          item.description_ar?.toLowerCase().includes(q)
+      );
+    }
+    return items.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [allItems, activeCategory, search]);
+
+  const groupedByCategory = useMemo(() => {
+    if (activeCategory || search.trim()) return null;
+    const groups: Array<{ category: Category; items: MenuItem[] }> = [];
+    for (const cat of categories) {
+      const catItems = allItems
+        .filter((item) => item.category_id === cat.id)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+      if (catItems.length > 0) groups.push({ category: cat, items: catItems });
+    }
+    return groups;
+  }, [categories, allItems, activeCategory, search]);
+
+  useEffect(() => {
+    if (activeCategory) {
+      setShowSearch(false);
+      setSearch("");
+    }
+  }, [activeCategory]);
+
+  /* ── Loading ─────────────────────────────────────── */
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-bg" dir={isRTL ? "rtl" : "ltr"}>
+        {/* Skeleton Header */}
+        <div className="glass-header sticky top-0 z-50 h-16 flex items-center px-4">
+          <div className="max-w-2xl mx-auto w-full flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="skeleton w-9 h-9 rounded-full" />
+              <div className="skeleton w-24 h-4 rounded-lg" />
+            </div>
+            <div className="flex gap-2">
+              <div className="skeleton w-8 h-8 rounded-full" />
+              <div className="skeleton w-8 h-8 rounded-full" />
+              <div className="skeleton w-20 h-8 rounded-full" />
+            </div>
+          </div>
+        </div>
+        {/* Skeleton hero */}
+        <div className="hero-section flex flex-col items-center py-10">
+          <div className="skeleton w-44 h-44 rounded-full" />
+          <div className="skeleton w-48 h-4 rounded-lg mt-4" />
+          <div className="skeleton w-32 h-3 rounded-lg mt-2" />
+        </div>
+        {/* Skeleton categories */}
+        <div className="flex gap-3 px-4 py-3 overflow-hidden">
+          {[1, 2, 3, 4, 5].map((i) => <SkeletonCategoryCard key={i} />)}
+        </div>
+        {/* Skeleton grid */}
+        <div className="max-w-2xl mx-auto px-4 py-6 grid grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Error ───────────────────────────────────────── */
+  if (error) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center p-4">
+        <div className="text-center bg-surface rounded-3xl p-8 shadow-card max-w-sm w-full border border-border">
+          <div className="text-5xl mb-4">⚠️</div>
+          <p className="text-primary font-semibold text-lg mb-1">{t("error")}</p>
+          <p className="text-ink-3 text-xs font-mono break-all">{String(error)}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const resolvedLogo = logoUrl || "/logo.png";
+
+  /* ── Main render ─────────────────────────────────── */
+  return (
+    <div className="min-h-screen bg-bg" dir={isRTL ? "rtl" : "ltr"}>
+
+      {/* ─── STICKY HEADER ──────────────────────────── */}
+      <header className="glass-header sticky top-0 z-50">
+        <div
+          className={`max-w-2xl mx-auto px-4 flex items-center justify-between gap-3 transition-all duration-300 ease-in-out ${
+            isScrolled ? "py-2" : "py-3"
+          }`}
+        >
+          {/* Compact brand */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className={`relative flex-shrink-0 transition-all duration-300 ease-in-out ${
+                isScrolled ? "w-8 h-8" : "w-10 h-10"
+              }`}
+            >
+              <Image
+                src={resolvedLogo}
+                alt="B99 Coffee"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+            <div className="min-w-0">
+              <h1
+                className={`font-bold text-ink leading-tight truncate transition-all duration-300 ${
+                  isScrolled ? "text-sm" : "text-base"
+                }`}
+              >
+                {shopName || t("site_name")}
+              </h1>
+              {!isScrolled && (
+                <p className="text-ink-3 text-[11px] leading-tight truncate">{t("tagline")}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              onClick={() => {
+                setShowSearch((v) => !v);
+                if (showSearch) setSearch("");
+              }}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${
+                showSearch
+                  ? "bg-primary text-white shadow-md"
+                  : "bg-surface-2 text-ink-2 hover:text-ink border border-border"
+              }`}
+              aria-label="Search"
+            >
+              <SearchIcon />
+            </button>
+
+            <button
+              onClick={toggleTheme}
+              className="w-9 h-9 rounded-full bg-surface-2 border border-border text-ink-2 hover:text-ink flex items-center justify-center transition-colors duration-200"
+              aria-label="Toggle dark mode"
+            >
+              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+            </button>
+
+            <LanguageToggle />
+          </div>
+        </div>
+
+        {/* Expandable search bar */}
+        <AnimatePresence>
+          {showSearch && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="max-w-2xl mx-auto px-4 pb-3">
+                <SearchBar value={search} onChange={setSearch} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </header>
+
+      {/* ─── HERO SECTION ────────────────────────────── */}
+      <section className="hero-section">
+        {/* Decorative ambient glows */}
+        <div
+          className="hero-glow w-64 h-64 -top-16 -start-16"
+          style={{ background: "radial-gradient(circle, rgba(204,80,30,0.18) 0%, transparent 70%)", position: "absolute" }}
+        />
+        <div
+          className="hero-glow w-48 h-48 -bottom-8 -end-8"
+          style={{ background: "radial-gradient(circle, rgba(204,0,0,0.12) 0%, transparent 70%)", position: "absolute" }}
+        />
+
+        <div className="relative z-10 flex flex-col items-center text-center px-4">
+          {/* Logo orb */}
+          <div className="hero-logo-wrap">
+            <div className="relative w-44 h-44">
+              <Image
+                src={resolvedLogo}
+                alt="B99 Coffee"
+                fill
+                className="object-contain drop-shadow-lg"
+                priority
+                sizes="176px"
+              />
+            </div>
+          </div>
+
+          {/* Shop name */}
+          <motion.h1
+            className="mt-5 text-2xl font-bold text-ink tracking-tight tagline-fade"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            {shopName || "B99 Coffee"}
+          </motion.h1>
+
+          {/* Tagline */}
+          <motion.p
+            className="mt-1.5 text-ink-2 text-sm font-medium tagline-fade"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.35 }}
+          >
+            {t("tagline")}
+          </motion.p>
+
+          {/* Decorative divider */}
+          <motion.div
+            className="mt-5 flex items-center gap-3"
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ opacity: 1, scaleX: 1 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+          >
+            <span className="h-px w-16 bg-gradient-to-r from-transparent via-border to-transparent" />
+            <span className="text-ink-3 text-xs">✦</span>
+            <span className="h-px w-16 bg-gradient-to-l from-transparent via-border to-transparent" />
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ─── STICKY CATEGORY CARDS ───────────────────── */}
+      <div
+        className="sticky z-40 bg-bg/90 backdrop-blur-md border-b border-border/60"
+        style={{ top: "var(--header-height)" }}
+      >
+        <div className="max-w-2xl mx-auto">
+          <CategoryTabs
+            categories={categories}
+            activeId={activeCategory}
+            onSelect={setActiveCategory}
+          />
+        </div>
+      </div>
+
+      {/* ─── MAIN CONTENT ────────────────────────────── */}
+      <main className="max-w-2xl mx-auto px-4 py-6 pb-20">
+        <AnimatePresence mode="wait">
+
+          {/* Filtered / single-category view */}
+          {(search.trim() || activeCategory) && (
+            <motion.div
+              key={`filtered-${activeCategory}-${search}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.25 }}
+            >
+              {/* Category heading */}
+              {activeCategory && !search && (() => {
+                const cat = categories.find((c) => c.id === activeCategory);
+                if (!cat) return null;
+                return (
+                  <div className="flex items-center gap-3 mb-6">
+                    {cat.icon && (
+                      <span className="text-4xl drop-shadow-sm">{cat.icon}</span>
+                    )}
+                    <div>
+                      <h2 className="text-xl font-bold text-ink leading-tight">
+                        {lang === "ar" ? cat.name_ar : cat.name_en}
+                      </h2>
+                      <p className="text-ink-3 text-xs mt-0.5">
+                        {filteredItems.length}{" "}
+                        {lang === "ar" ? "منتج" : "items"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {filteredItems.length === 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center py-24"
+                >
+                  <div className="text-7xl mb-5 opacity-30">☕</div>
+                  <p className="text-ink-2 font-semibold text-lg">{t("no_items")}</p>
+                  {search && (
+                    <button
+                      onClick={() => setSearch("")}
+                      className="mt-4 px-5 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold hover:bg-primary/20 transition-colors"
+                    >
+                      {lang === "ar" ? "مسح البحث" : "Clear search"}
+                    </button>
+                  )}
+                </motion.div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3.5 sm:gap-4">
+                  {filteredItems.map((item, i) => (
+                    <MenuItemCard
+                      key={item.id}
+                      item={item}
+                      index={i}
+                      category={categories.find((c) => c.id === item.category_id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* All-categories grouped view */}
+          {!search.trim() && !activeCategory && groupedByCategory && (
+            <motion.div
+              key="grouped"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="space-y-10"
+            >
+              {groupedByCategory.length === 0 ? (
+                <div className="text-center py-24">
+                  <div className="text-7xl mb-5 opacity-25">☕</div>
+                  <p className="text-ink-2 font-semibold">{t("no_items")}</p>
+                  <p className="text-ink-3 text-sm mt-1.5">
+                    {lang === "ar"
+                      ? "أضف عناصر من لوحة الإدارة"
+                      : "Add items from the admin panel"}
+                  </p>
+                </div>
+              ) : (
+                groupedByCategory.map(({ category, items: catItems }, groupIdx) => (
+                  <section
+                    key={category.id}
+                    ref={(el) => {
+                      if (el) sectionRefs.current.set(category.id, el);
+                    }}
+                    className="section-reveal"
+                    style={{ animationDelay: `${groupIdx * 60}ms` }}
+                  >
+                    {/* Category header row */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2.5">
+                        {category.icon && (
+                          <span className="text-2xl drop-shadow-sm">{category.icon}</span>
+                        )}
+                        <div>
+                          <h2 className="text-lg font-bold text-ink leading-tight">
+                            {lang === "ar" ? category.name_ar : category.name_en}
+                          </h2>
+                          <p className="text-ink-3 text-[11px]">
+                            {catItems.length}{" "}
+                            {lang === "ar" ? "منتج" : "items"}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setActiveCategory(category.id)}
+                        className="flex items-center gap-1 text-primary text-xs font-semibold hover:opacity-70 transition-opacity flex-shrink-0 bg-surface-2 px-3 py-1.5 rounded-full"
+                      >
+                        {lang === "ar" ? "عرض الكل" : "See all"}
+                        <span className={isRTL ? "rotate-180" : ""}>→</span>
+                      </button>
+                    </div>
+
+                    {/* Items grid */}
+                    <div className="grid grid-cols-2 gap-3.5 sm:gap-4">
+                      {catItems.slice(0, 4).map((item, i) => (
+                        <MenuItemCard
+                          key={item.id}
+                          item={item}
+                          index={i}
+                          category={category}
+                        />
+                      ))}
+                    </div>
+
+                    {catItems.length > 4 && (
+                      <button
+                        onClick={() => setActiveCategory(category.id)}
+                        className="mt-3.5 w-full py-3.5 rounded-2xl border border-border text-ink-2 text-sm font-semibold hover:border-primary hover:text-primary hover:bg-primary/5 transition-all duration-200"
+                      >
+                        {lang === "ar"
+                          ? `عرض ${catItems.length - 4} منتج إضافي`
+                          : `Show ${catItems.length - 4} more items`}
+                      </button>
+                    )}
+                  </section>
+                ))
+              )}
+            </motion.div>
+          )}
+
+        </AnimatePresence>
+      </main>
+
+      {/* ─── FOOTER ──────────────────────────────────── */}
+      <footer className="border-t border-border py-8 text-center bg-surface-2/40">
+        <div className="flex items-center justify-center gap-2 text-ink-3 text-xs">
+          <span className="font-extrabold text-primary text-sm">B99</span>
+          <span className="text-border">·</span>
+          <span>© {new Date().getFullYear()}</span>
+        </div>
+        <p className="text-ink-3 text-[11px] mt-1">{t("tagline")}</p>
+        <p className="text-ink-3 text-[10px] mt-3 opacity-50">
+          Powered by <span className="font-semibold">JudyTech</span>
+        </p>
+      </footer>
+    </div>
+  );
+}
